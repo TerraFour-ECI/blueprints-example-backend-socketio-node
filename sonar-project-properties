@@ -1,0 +1,7 @@
+sonar.organization=terrafour-eci
+sonar.projectKey=TerraFour-ECI_blueprints-example-backend-socketio-node
+sonar.sources=src
+sonar.tests=tests
+sonar.test.inclusions=tests/**/*.test.jsx,tests/**/*.test.js,tests/**/*.spec.jsx,tests/**/*.spec.js
+sonar.exclusions=dist/**,coverage/**,report/**,images/**
+sonar.javascript.lcov.reportPaths=coverage/lcov.info
