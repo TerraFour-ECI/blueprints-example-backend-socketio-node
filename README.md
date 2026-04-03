@@ -1,86 +1,86 @@
-# example-backend-socketio-node — Backend Socket.IO para BluePrints P4
+# example-backend-socketio-node - Socket.IO Backend for BluePrints P4
 
-**Objetivo:** entender, explicar y poner en funcionamiento un **backend Node.js + Socket.IO** que habilite colaboración en tiempo real (dibujo de planos) e integre con el **front React (Blueprints – Parte 4)**.
-
----
-
-## 🧩 ¿Qué resuelve este backend?
-- API REST mínima para entregar **estado inicial** de un plano.
-- **Tiempo real** con **Socket.IO**:
-  - Unirse a salas por **autor/plano**.
-  - Enviar puntos de dibujo y hacer **broadcast** a los demás clientes.
-- Integración directa con el **frontend React P4** (Canvas + CRUD + selector RT).
+**Objective:** understand, explain, and run a **Node.js + Socket.IO backend** that enables real-time collaboration (blueprint drawing) and integrates with the **React front-end (Blueprints - Part 4)**.
 
 ---
 
-## 🏗️ Arquitectura (resumen)
+## 🧩 What does this backend provide?
+- A minimal REST API to deliver the blueprint **initial state**.
+- **Real-time** support with **Socket.IO**:
+  - Join rooms by **author/blueprint**.
+  - Send drawing points and **broadcast** to other clients.
+- Direct integration with the **React P4 front-end** (Canvas + CRUD + RT selector).
+
+---
+
+## 🏗️ Architecture (summary)
 ```
-React (Vite) ──(HTTP GET estado inicial)──> Express
+React (Vite) ──(HTTP GET initial state)──> Express
 React (Socket.IO) ──(join-room / draw-event)──> Socket.IO Server
-                                      └──(blueprint-update broadcast a sala)
+                                      └──(blueprint-update broadcast to room)
 ```
 
-**Convenciones**
-- **Sala (room):** `blueprints.{author}.{name}`
-- **Eventos client → server:**
+**Conventions**
+- **Room:** `blueprints.{author}.{name}`
+- **Events client → server:**
   - `join-room` → `room`
   - `draw-event` → `{ room, author, name, point:{x,y} }`
-- **Evento server → clients:** `blueprint-update` → `{ author, name, points:[{x,y}] }`
+- **Event server → clients:** `blueprint-update` → `{ author, name, points:[{x,y}] }`
 
 ---
 
-## 📦 Requisitos
-- Node.js **v18+** (recomendado **v20 LTS**)
-- npm o pnpm
+## 📦 Requirements
+- Node.js **v18+** (recommended **v20 LTS**)
+- npm or pnpm
 
 ---
 
-## 🚀 Puesta en marcha
+## 🚀 Getting started
 ```bash
-# 1) Instalar dependencias
+# 1) Install dependencies
 npm i
 
-# 2) Ejecutar en desarrollo
+# 2) Run in development
 npm run dev
-# Servirá HTTP en http://localhost:3001 y Socket.IO en el mismo host/puerto.
+# It serves HTTP at http://localhost:3001 and Socket.IO on the same host/port.
 ```
 
-> **Puerto:** por defecto **3001**. Puedes definir `PORT` como variable de entorno.
+> **Port:** defaults to **3001**. You can define `PORT` as an environment variable.
 
 ---
 
-## 🔌 Endpoints REST (mínimos)
-Se usan para cargar el **estado inicial** del plano antes de empezar a dibujar.
+## 🔌 REST endpoints (minimum)
+These are used to load the blueprint **initial state** before starting to draw.
 
 - **GET** `/api/blueprints/:author/:name`  
   **200 OK**
   ```json
   {
     "author": "juan",
-    "name": "plano-1",
+    "name": "blueprint-1",
     "points": [{ "x":10, "y":10 }, { "x":40, "y":50 }]
   }
   ```
 
-**Curl de prueba**
+**Test curl**
 ```bash
-curl http://localhost:3001/api/blueprints/juan/plano-1
+curl http://localhost:3001/api/blueprints/juan/blueprint-1
 ```
 
-> Este ejemplo se centra en **tiempo real**. El **CRUD completo** (POST/PUT/DELETE/list) lo implementas en tu API del curso.
+> This example focuses on **real-time** behavior. The **full CRUD** (POST/PUT/DELETE/list) is implemented in your course API.
 
 ---
 
-## 🔴 Eventos Socket.IO
+## 🔴 Socket.IO events
 
-### 1) Unirse a una sala
-**Cliente → Servidor**
+### 1) Join a room
+**Client → Server**
 ```js
 socket.emit('join-room', `blueprints.${author}.${name}`);
 ```
 
-### 2) Enviar un punto (dibujo incremental)
-**Cliente → Servidor**
+### 2) Send a point (incremental drawing)
+**Client → Server**
 ```js
 socket.emit('draw-event', {
   room: `blueprints.${author}.${name}`,
@@ -89,38 +89,38 @@ socket.emit('draw-event', {
 });
 ```
 
-**Servidor → Clientes (broadcast a la sala)**
-**Evento:** `blueprint-update`
+**Server → Clients (broadcast to the room)**
+**Event:** `blueprint-update`
 ```json
 {
   "author": "juan",
-  "name": "plano-1",
+  "name": "blueprint-1",
   "points": [ { "x": 123, "y": 45 } ]
 }
 ```
 
 ---
 
-## 🧪 Cómo probar con el Front React P4
-En el **frontend (Blueprints P4)**:
+## 🧪 How to test with the React P4 front-end
+In the **front-end (Blueprints P4)**:
 
-1. Crea `.env.local`:
+1. Create `.env.local`:
    ```
-   VITE_API_BASE=http://localhost:8080   # si usas backend STOMP para REST
-   VITE_IO_BASE=http://localhost:3001    # este backend Socket.IO
+  VITE_API_BASE=http://localhost:8080   # if you use STOMP backend for REST
+  VITE_IO_BASE=http://localhost:3001    # this Socket.IO backend
    ```
-2. Levanta el front:
+2. Start the front-end:
    ```bash
    npm i
    npm run dev
    ```
-3. En la UI, selecciona **Socket.IO** como tecnología RT, elige `autor` y `plano`, abre **dos pestañas** y haz clic en el canvas: verás el trazo replicado.
+3. In the UI, select **Socket.IO** as RT technology, choose `author` and `blueprint`, open **two tabs**, and click on the canvas: you will see the stroke replicated.
 
 ---
 
-## ⚙️ Configuración
-**Variables de entorno**
-- `PORT` (opcional): puerto del servidor (default `3001`).
+## ⚙️ Configuration
+**Environment variables**
+- `PORT` (optional): server port (default `3001`).
 
 **Scripts (package.json)**
 ```json
@@ -134,38 +134,38 @@ En el **frontend (Blueprints P4)**:
 
 ---
 
-## 🔐 CORS y Seguridad
-- En desarrollo: `cors({ origin: '*' })` para simplificar.
-- En producción: **restringe orígenes**.
+## 🔐 CORS and security
+- In development: `cors({ origin: '*' })` to simplify setup.
+- In production: **restrict origins**.
   ```js
-  const allowed = ['https://tu-frontend.com'];
+  const allowed = ['https://your-frontend.com'];
   const io = new Server(server, { cors: { origin: allowed }});
   ```
-- Valida payloads (zod/joi) y añade autenticación/autorización (p. ej. JWT por sala).
+- Validate payloads (zod/joi) and add authentication/authorization (for example JWT per room).
 
 ---
 
 ## 🩺 Troubleshooting
-- **Pantalla en blanco (front):** revisa consola del navegador; verifica rutas de import, existencia de `@vitejs/plugin-react` y que `AppP4.jsx` esté en `src/`.
-- **No hay broadcast:** asegúrate de que ambas pestañas hagan `join-room` a la **misma** sala y que el server use `socket.to(room).emit(...)`.
-- **CORS bloqueado:** habilita `http://localhost:5173` o el dominio de tu front.
-- **Socket.IO no conecta:** fuerza WebSocket en el cliente: `{ transports: ['websocket'] }`.
+- **Blank screen (front-end):** check browser console; verify import paths, `@vitejs/plugin-react` presence, and that `AppP4.jsx` is in `src/`.
+- **No broadcast:** make sure both tabs `join-room` to the **same** room and the server uses `socket.to(room).emit(...)`.
+- **Blocked CORS:** allow `http://localhost:5173` or your front-end domain.
+- **Socket.IO does not connect:** force WebSocket in the client: `{ transports: ['websocket'] }`.
 
 ---
 
-## 📚 Extensiones sugeridas
-- **Persistencia**: guardar puntos (memoria/Redis/Postgres).
-- **Escalado**: adapter Redis para múltiples instancias.
-- **Métricas**: logs de join/leave, ping-pong de latencia.
-- **Seguridad**: JWT + autorización por sala.
+## 📚 Suggested extensions
+- **Persistence**: store points (memory/Redis/Postgres).
+- **Scaling**: Redis adapter for multiple instances.
+- **Metrics**: join/leave logs, latency ping-pong.
+- **Security**: JWT + room-based authorization.
 
 ---
 
-## ✅ Checklist de entrega
-- [ ] `GET /api/blueprints/:author/:name` retorna puntos iniciales.  
-- [ ] Clientes se unen a `room = blueprints.{author}.{name}`.  
-- [ ] `draw-event` → broadcast `blueprint-update` a la sala.  
-- [ ] Front refleja el trazo en **< 1s** en 2+ pestañas.  
-- [ ] Domento de laboratorio donde explica **setup** e **integración** con el front.
+## ✅ Delivery checklist
+- [ ] `GET /api/blueprints/:author/:name` returns initial points.  
+- [ ] Clients join `room = blueprints.{author}.{name}`.  
+- [ ] `draw-event` → broadcast `blueprint-update` to the room.  
+- [ ] Front-end reflects strokes in **< 1s** across 2+ tabs.  
+- [ ] Lab document explaining **setup** and **integration** with the front-end.
 
 ---
