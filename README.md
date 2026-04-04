@@ -129,4 +129,4 @@ Then in the UI select `Socket.IO (Node)` transport.
 
 ## License
 
-MIT
+MIT [LICENSE](LICENSE)
