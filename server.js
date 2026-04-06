@@ -197,7 +197,9 @@ export function createRealtimeServer(configInput = {}) {
   return { app, server, io, config };
 }
 
+/* c8 ignore start */
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const runtime = createRealtimeServer();
   runtime.server.listen(runtime.config.port, () => console.log(`Socket.IO up on :${runtime.config.port}`));
 }
+/* c8 ignore stop */
