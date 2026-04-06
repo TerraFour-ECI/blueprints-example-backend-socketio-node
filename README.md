@@ -1,4 +1,4 @@
-# Socket.IO Backend - High-Impact README Edition
+# ⚡ Socket.IO Backend - Final Evidence README
 
 <div align="center">
 
@@ -7,111 +7,52 @@
 ![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8-0f172a?style=for-the-badge&logo=socket.io&logoColor=white)
 ![Realtime](https://img.shields.io/badge/Realtime-Room_Broadcast-f97316?style=for-the-badge)
 
-Blueprint room-based realtime backend used by the Lab P4 front-end.
+Realtime room-based backend used by the central P4 frontend.
 
 </div>
 
 ---
 
-## Table of contents
+## 🎯 Purpose
 
-- [Purpose](#purpose)
-- [What it provides](#what-it-provides)
-- [Architecture](#architecture)
-- [Events](#events)
-- [Run guide](#run-guide)
-- [Quality checks](#quality-checks)
-- [Screenshot evidence kit](#screenshot-evidence-kit)
-- [Frontend integration](#frontend-integration)
+This backend is responsible for Socket.IO collaborative behavior:
+
+- join blueprint-specific rooms
+- receive draw events
+- broadcast updates to room peers
 
 ---
 
-## Purpose
+## 🧩 Core contracts
 
-This backend demonstrates the Socket.IO collaboration model for BluePrints:
-
-- isolate users by blueprint room
-- emit point-level updates
-- broadcast updates to all peers in the same room
-
----
-
-## What it provides
-
-- `GET /api/blueprints/:author/:name` for initial blueprint state
-- Socket room subscription with `join-room`
-- incremental drawing propagation with `draw-event`
-- room broadcast through `blueprint-update`
+- `join-room` → `blueprints.{author}.{name}`
+- `draw-event` → `{ room, author, name, point }`
+- `blueprint-update` → `{ author, name, points: [...] }`
+- REST bootstrap endpoint: `GET /api/blueprints/:author/:name`
 
 ---
 
-## Architecture
+## 🏗️ Architecture
 
 ```mermaid
 flowchart LR
-  FE[React Frontend] -->|HTTP GET blueprint| API[Express API]
-  FE -->|join-room| IO[Socket.IO Server]
-  FE -->|draw-event point| IO
-  IO -->|blueprint-update| FE
-  IO -->|socket.to room| ROOM[(Room blueprints.author.name)]
-```
-
-### Runtime state flow
-
-```mermaid
-stateDiagram-v2
-  [*] --> Connected
-  Connected --> Joined: join-room
-  Joined --> Drawing: draw-event
-  Drawing --> Broadcasting: emit blueprint-update to room
-  Broadcasting --> Joined
-  Joined --> Disconnected: disconnect
-  Disconnected --> [*]
+  FE["Realtime Frontend :5174"] -->|"GET initial blueprint"| API["Express REST"]
+  FE -->|"join-room / draw-event"| IO["Socket.IO Server"]
+  IO -->|"blueprint-update"| FE
 ```
 
 ---
 
-## Events
-
-### join-room
-
-```json
-"blueprints.juan.blueprint-1"
-```
-
-### draw-event
-
-```json
-{
-  "room": "blueprints.juan.blueprint-1",
-  "author": "juan",
-  "name": "blueprint-1",
-  "point": { "x": 140, "y": 88 }
-}
-```
-
-### blueprint-update
-
-```json
-{
-  "author": "juan",
-  "name": "blueprint-1",
-  "points": [{ "x": 140, "y": 88 }]
-}
-```
-
----
-
-## Run guide
+## ▶️ Run
 
 ```bash
 npm install
 npm run dev
 ```
 
-Default server: `http://localhost:3001`
+Service URL: `http://localhost:3001`
 
-Endpoint smoke test:
+Quick check:
 
 ```bash
 curl http://localhost:3001/api/blueprints/juan/blueprint-1
@@ -119,39 +60,50 @@ curl http://localhost:3001/api/blueprints/juan/blueprint-1
 
 ---
 
-## Quality checks
+## 📸 Evidence gallery
 
-```bash
-npm run lint
-```
+### 01 - Server started
+Backend runtime confirmed on expected port.
+
+![socketio-01-server-start](images/socketio-01-server-start.png)
+
+### 02 - Room join log
+Client enters expected collaboration room.
+
+![socketio-02-room-join-log](images/socketio-02-room-join-log.png)
+
+### 03 - Draw-event payload
+Outgoing realtime event from frontend to Socket.IO server.
+
+![socketio-03-draw-event-log](images/socketio-03-draw-event-log.png)
+
+### 04 - Broadcast update payload
+Server emits update to all peers in the same room.
+
+![socketio-04-broadcast-update-log](images/socketio-04-broadcast-update-log.png)
+
+### 05 - Two-tab replication
+Visual proof of synchronized drawing between tabs.
+
+![socketio-05-two-tabs-replication](images/socketio-05-two-tabs-replication.png)
+
+### 06 - CI/quality evidence
+Lint and Sonar pipeline passing.
+
+![socketio-06-sonar-and-lint-pass](images/socketio-06-sonar-and-lint-pass.png)
 
 ---
 
-## Screenshot evidence kit
+## 🔗 Integration note
 
-| File name | Recommended capture |
-|---|---|
-| `socketio-01-server-start.png` | Terminal showing backend start and listening port |
-| `socketio-02-room-join-log.png` | Console proof of room join |
-| `socketio-03-draw-event-log.png` | Emitted draw-event payload |
-| `socketio-04-broadcast-update-log.png` | Broadcast blueprint-update payload |
-| `socketio-05-two-tabs-replication.png` | Two tabs with same room and synchronized drawing |
-| `socketio-06-sonar-and-lint-pass.png` | Sonar workflow + lint passing status |
-
----
-
-## Frontend integration
-
-In front-end `.env.local`:
+Set this in realtime frontend `.env.local`:
 
 ```bash
 VITE_IO_BASE=http://localhost:3001
 ```
 
-Select transport mode: **Socket.IO (Node)**.
-
 ---
 
-## License
+## 📄 License
 
 MIT [LICENSE](LICENSE)
