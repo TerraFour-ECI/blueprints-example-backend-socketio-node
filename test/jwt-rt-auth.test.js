@@ -5,9 +5,7 @@ import { io as createClient } from 'socket.io-client';
 import { createRealtimeServer } from '../server.js';
 
 const b64url = (obj) =>
-  Buffer.from(JSON.stringify(obj))
-    .toString('base64url')
-    .replace(/=+$/g, '');
+  Buffer.from(JSON.stringify(obj)).toString('base64url');
 
 const createJwt = (subject, expiresInSeconds = 300) => {
   const now = Math.floor(Date.now() / 1000);
