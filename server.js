@@ -1,20 +1,10 @@
 import express from 'express';
 import http from 'http';
+import { pathToFileURL } from 'node:url';
 import { Server } from 'socket.io';
 import cors from 'cors';
 
-const JWT_REQUIRED = process.env.JWT_REQUIRED !== 'false';
-const JWT_ENFORCE_ROOM_OWNER = process.env.JWT_ENFORCE_ROOM_OWNER !== 'false';
-const SECURITY_API_BASE = (process.env.SECURITY_API_BASE || 'http://localhost:8080').replace(/\/$/, '');
-const JWT_ADMIN_USERS = new Set(
-  (process.env.JWT_ADMIN_USERS || '')
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean),
-);
-
-const parseAllowedOrigins = () => {
-  const raw = process.env.CORS_ORIGINS;
+const parseAllowedOrigins = (raw) => {
   if (!raw || raw.trim() === '*') return '*';
   return raw
     .split(',')
@@ -47,6 +37,24 @@ const parseBlueprintRoom = (room) => {
   };
 };
 
+const buildRuntimeConfig = (config = {}) => ({
+  jwtRequired:
+    config.jwtRequired ??
+    (config.JWT_REQUIRED ?? process.env.JWT_REQUIRED) !== 'false',
+  jwtEnforceRoomOwner:
+    config.jwtEnforceRoomOwner ??
+    (config.JWT_ENFORCE_ROOM_OWNER ?? process.env.JWT_ENFORCE_ROOM_OWNER) !== 'false',
+  securityApiBase: (config.securityApiBase ?? config.SECURITY_API_BASE ?? process.env.SECURITY_API_BASE ?? 'http://localhost:8080').replace(/\/$/, ''),
+  jwtAdminUsers: new Set(
+    String(config.jwtAdminUsers ?? config.JWT_ADMIN_USERS ?? process.env.JWT_ADMIN_USERS ?? '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean),
+  ),
+  allowedOrigins: parseAllowedOrigins(String(config.corsOrigins ?? config.CORS_ORIGINS ?? process.env.CORS_ORIGINS ?? '*')),
+  port: Number(config.port ?? config.PORT ?? process.env.PORT ?? 3001),
+});
+
 const decodeJwtPayload = (token) => {
   try {
     const payload = token.split('.')[1];
@@ -68,8 +76,8 @@ const extractBearer = (raw) => {
   return value.trim();
 };
 
-const validateTokenAgainstSecurityApi = async (token) => {
-  const response = await fetch(`${SECURITY_API_BASE}/api/blueprints`, {
+const validateTokenAgainstSecurityApi = async (token, securityApiBase) => {
+  const response = await fetch(`${securityApiBase}/api/blueprints`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -78,111 +86,118 @@ const validateTokenAgainstSecurityApi = async (token) => {
   }
 };
 
-const isAuthorizedForAuthor = (user, author) => {
-  if (!JWT_ENFORCE_ROOM_OWNER) return true;
+const isAuthorizedForAuthor = (user, author, config) => {
+  if (!config.jwtEnforceRoomOwner) return true;
   if (!user) return false;
-  if (JWT_ADMIN_USERS.has(user)) return true;
+  if (config.jwtAdminUsers.has(user)) return true;
   return user === author;
 };
 
-const app = express();
-const allowedOrigins = parseAllowedOrigins();
-app.use(cors({ origin: allowedOrigins }));
-app.use(express.json());
+export function createRealtimeServer(configInput = {}) {
+  const config = buildRuntimeConfig(configInput);
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'UP', service: 'socketio-backend', timestamp: new Date().toISOString() });
-});
+  const app = express();
+  app.use(cors({ origin: config.allowedOrigins }));
+  app.use(express.json());
 
-app.get('/api/blueprints/:author/:name', (req, res) => {
-  res.json({
-    author: req.params.author,
-    name: req.params.name,
-    points: [{ x: 10, y: 10 }, { x: 40, y: 50 }],
-  });
-});
-
-const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: allowedOrigins } });
-
-io.use(async (socket, next) => {
-  if (!JWT_REQUIRED) {
-    socket.data.user = 'anonymous';
-    return next();
-  }
-
-  try {
-    const authHeader = socket.handshake.auth?.token || socket.handshake.headers?.authorization;
-    const token = extractBearer(authHeader);
-    if (!token) {
-      return next(new Error('Missing Bearer token in socket handshake'));
-    }
-
-    await validateTokenAgainstSecurityApi(token);
-    const payload = decodeJwtPayload(token);
-    const user = String(payload?.sub || '').trim();
-    if (!user) {
-      return next(new Error('JWT subject is missing'));
-    }
-
-    socket.data.user = user;
-    socket.data.token = token;
-    return next();
-  } catch (error) {
-    return next(new Error(`JWT authorization failed: ${error.message}`));
-  }
-});
-
-io.on('connection', (socket) => {
-  console.log(`[socketio] connected socketId=${socket.id} user=${socket.data.user || 'n/a'}`);
-
-  socket.on('join-room', (room) => {
-    if (typeof room !== 'string' || !room.startsWith('blueprints.')) {
-      socket.emit('rt-error', { message: 'Invalid room format' });
-      return;
-    }
-
-    const parsed = parseBlueprintRoom(room);
-    if (!parsed || !isAuthorizedForAuthor(socket.data.user, parsed.author)) {
-      socket.emit('rt-error', { message: 'Not authorized to join this room' });
-      return;
-    }
-
-    socket.join(room);
-    console.log(`[socketio] join-room socketId=${socket.id} user=${socket.data.user} room=${room}`);
+  app.get('/health', (_req, res) => {
+    res.json({ status: 'UP', service: 'socketio-backend', timestamp: new Date().toISOString() });
   });
 
-  socket.on('draw-event', (payload) => {
-    if (!isValidDrawEvent(payload)) {
-      socket.emit('rt-error', { message: 'Invalid draw-event payload' });
-      return;
+  app.get('/api/blueprints/:author/:name', (req, res) => {
+    res.json({
+      author: req.params.author,
+      name: req.params.name,
+      points: [{ x: 10, y: 10 }, { x: 40, y: 50 }],
+    });
+  });
+
+  const server = http.createServer(app);
+  const io = new Server(server, { cors: { origin: config.allowedOrigins } });
+
+  io.use(async (socket, next) => {
+    if (!config.jwtRequired) {
+      socket.data.user = 'anonymous';
+      return next();
     }
 
-    const point = { x: Number(payload.point.x), y: Number(payload.point.y) };
-    if (!isAuthorizedForAuthor(socket.data.user, payload.author)) {
-      socket.emit('rt-error', { message: 'Not authorized to publish in this room' });
-      return;
-    }
+    try {
+      const authHeader = socket.handshake.auth?.token || socket.handshake.headers?.authorization;
+      const token = extractBearer(authHeader);
+      if (!token) {
+        return next(new Error('Missing Bearer token in socket handshake'));
+      }
 
-    socket.to(payload.room).emit('blueprint-update', {
-      author: payload.author,
-      name: payload.name,
-      points: [point],
+      await validateTokenAgainstSecurityApi(token, config.securityApiBase);
+      const payload = decodeJwtPayload(token);
+      const user = String(payload?.sub || '').trim();
+      if (!user) {
+        return next(new Error('JWT subject is missing'));
+      }
+
+      socket.data.user = user;
+      socket.data.token = token;
+      return next();
+    } catch (error) {
+      return next(new Error(`JWT authorization failed: ${error.message}`));
+    }
+  });
+
+  io.on('connection', (socket) => {
+    console.log(`[socketio] connected socketId=${socket.id} user=${socket.data.user || 'n/a'}`);
+
+    socket.on('join-room', (room) => {
+      if (typeof room !== 'string' || !room.startsWith('blueprints.')) {
+        socket.emit('rt-error', { message: 'Invalid room format' });
+        return;
+      }
+
+      const parsed = parseBlueprintRoom(room);
+      if (!parsed || !isAuthorizedForAuthor(socket.data.user, parsed.author, config)) {
+        socket.emit('rt-error', { message: 'Not authorized to join this room' });
+        return;
+      }
+
+      socket.join(room);
+      console.log(`[socketio] join-room socketId=${socket.id} user=${socket.data.user} room=${room}`);
     });
 
-    console.log(
-      `[socketio] draw-event user=${socket.data.user} room=${payload.room} author=${payload.author} name=${payload.name} x=${point.x} y=${point.y}`,
-    );
+    socket.on('draw-event', (payload) => {
+      if (!isValidDrawEvent(payload)) {
+        socket.emit('rt-error', { message: 'Invalid draw-event payload' });
+        return;
+      }
+
+      const point = { x: Number(payload.point.x), y: Number(payload.point.y) };
+      if (!isAuthorizedForAuthor(socket.data.user, payload.author, config)) {
+        socket.emit('rt-error', { message: 'Not authorized to publish in this room' });
+        return;
+      }
+
+      socket.to(payload.room).emit('blueprint-update', {
+        author: payload.author,
+        name: payload.name,
+        points: [point],
+      });
+
+      console.log(
+        `[socketio] draw-event user=${socket.data.user} room=${payload.room} author=${payload.author} name=${payload.name} x=${point.x} y=${point.y}`,
+      );
+    });
+
+    socket.on('ping-check', (clientTs) => {
+      socket.emit('pong-check', { clientTs, serverTs: Date.now() });
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log(`[socketio] disconnected socketId=${socket.id} reason=${reason}`);
+    });
   });
 
-  socket.on('ping-check', (clientTs) => {
-    socket.emit('pong-check', { clientTs, serverTs: Date.now() });
-  });
+  return { app, server, io, config };
+}
 
-  socket.on('disconnect', (reason) => {
-    console.log(`[socketio] disconnected socketId=${socket.id} reason=${reason}`);
-  });
-});
-
-const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => console.log(`Socket.IO up on :${PORT}`));
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const runtime = createRealtimeServer();
+  runtime.server.listen(runtime.config.port, () => console.log(`Socket.IO up on :${runtime.config.port}`));
+}

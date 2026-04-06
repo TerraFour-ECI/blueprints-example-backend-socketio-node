@@ -178,9 +178,27 @@ Scripts:
 {
   "scripts": {
     "dev": "node server.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "node --test"
   }
 }
+```
+
+---
+
+## 🧪 Automated JWT Authorization Tests
+
+This repository now includes automated realtime authorization tests at `test/jwt-rt-auth.test.js`.
+
+Covered cases:
+- ✅ Valid JWT: authorized room join + successful realtime broadcast.
+- ✅ Invalid JWT: handshake rejected with `connect_error`.
+- ✅ Foreign author access: user is rejected when joining another author's room.
+
+Run tests:
+
+```bash
+npm test
 ```
 
 ---
