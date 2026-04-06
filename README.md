@@ -1,4 +1,4 @@
-# example-backend-socketio-node- - Socket.IO Backend for BluePrints P4
+# blueprints-example-backend-socketio-node - Socket.IO Backend for BluePrints P4
 
 **Goal:** understand, document, and run a **Node.js + Socket.IO** backend that enables realtime collaboration for blueprint drawing and integrates with the **React BluePrints P4 frontend**.
 
@@ -19,7 +19,7 @@
 - **Realtime collaboration** with Socket.IO:
   - Join author/blueprint rooms.
   - Send incremental draw points and **broadcast** updates to peers.
-- Direct integration with the frontend repository: [DECSIS-ECI/Lab_P4_BluePrints_RealTime-Sokets](https://github.com/DECSIS-ECI/Lab_P4_BluePrints_RealTime-Sokets).
+- Direct integration with the frontend repository: [TerraFour-ECI/arsw-blueprints-api-realtime-sockets-lab](https://github.com/TerraFour-ECI/arsw-blueprints-api-realtime-sockets-lab).
 
 ---
 
@@ -129,12 +129,16 @@ Event: `blueprint-update`
 
 ## 🧪 Frontend integration (P4)
 
-In the realtime frontend repo ([DECSIS-ECI/Lab_P4_BluePrints_RealTime-Sokets](https://github.com/DECSIS-ECI/Lab_P4_BluePrints_RealTime-Sokets)), set:
+In the realtime frontend repo ([TerraFour-ECI/arsw-blueprints-api-realtime-sockets-lab](https://github.com/TerraFour-ECI/arsw-blueprints-api-realtime-sockets-lab)), set:
 
 ```bash
-VITE_API_BASE=http://localhost:8080   # CRUD API
+VITE_API_BASE=http://localhost:8080   # secured CRUD API (security-lab)
 VITE_IO_BASE=http://localhost:3001    # this Socket.IO backend
 ```
+
+Related repositories in the integrated flow:
+- JWT frontend: [TerraFour-ECI/arsw-blueprints-api-react-lab](https://github.com/TerraFour-ECI/arsw-blueprints-api-react-lab) (`5173`)
+- Security backend: [TerraFour-ECI/arsw-blueprints-api-security-lab](https://github.com/TerraFour-ECI/arsw-blueprints-api-security-lab) (`8080`)
 
 Then:
 1. Start this backend.
