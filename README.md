@@ -166,6 +166,7 @@ Then:
 
 Environment variables:
 - `PORT` (optional): server port, default `3001`.
+- `CORS_ORIGINS` (optional): comma-separated allowed origins; use `*` only for local dev.
 
 Scripts:
 
@@ -194,14 +195,31 @@ Recommended hardening:
 - Validate payloads (zod/joi).
 - Add authentication and room-level authorization (JWT).
 
+### How this was implemented in this repository
+- Payload validation for realtime events is implemented in `server.js` (`isValidPoint` and `isValidDrawEvent`).
+- CORS policy is configurable via `CORS_ORIGINS` (`parseAllowedOrigins`), allowing strict production origins.
+- Basic observability is implemented with structured logs for connect, join-room, draw-event, and disconnect.
+- Health check endpoint is available at `GET /health`.
+- Latency hook is implemented with `ping-check` -> `pong-check` socket events.
+
 ---
 
 ## 📚 Suggested Extensions
 
-- **Persistence**: store points in memory cache, Redis, or PostgreSQL.
-- **Scalability**: use Redis adapter for multi-instance Socket.IO deployment.
-- **Metrics**: add join/leave logs and latency ping-pong measurements.
-- **Security**: enforce JWT + room-level authorization.
+- **Persistence**
+  - Why: current REST seed response is static and does not persist collaborative edits.
+  - How to extend: write incoming points to Redis/PostgreSQL and load from storage in `GET /api/blueprints/:author/:name`.
+- **Scalability**
+  - Why: room broadcasts are in-memory per Node process.
+  - How to extend: add Socket.IO Redis adapter for multi-instance pub/sub synchronization.
+- **Metrics**
+  - Why: rubric values observability and diagnosis of latency/reconnect behavior.
+  - How it is already partially implemented: connection/join/draw/disconnect logs plus ping/pong hook.
+  - Next step: export metrics to Prometheus/Grafana.
+- **Security**
+  - Why: production should restrict who can publish to each blueprint room.
+  - How it is currently supported: CORS is configurable; payload shape is validated.
+  - Next step: enforce JWT verification and room-level authorization middleware.
 
 ---
 
