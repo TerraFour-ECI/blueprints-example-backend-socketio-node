@@ -1,4 +1,4 @@
-# blueprints-example-backend-socketio-node - Socket.IO Backend for BluePrints P4
+# Socket.IO Backend for BluePrints P4
 
 **Goal:** understand, document, and run a **Node.js + Socket.IO** backend that enables realtime collaboration for blueprint drawing and integrates with the **React BluePrints P4 frontend**.
 
@@ -23,12 +23,25 @@
 
 ---
 
-## 🏗️ Architecture summary
+## 🏗️ Architecture summary (Advanced Mermaid)
 
-```text
-React (Vite) --(HTTP GET initial state)--> Express
-React (Socket.IO) --(join-room / draw-event)--> Socket.IO Server
-                                        └--(blueprint-update broadcast to room)
+```mermaid
+sequenceDiagram
+  autonumber
+  participant FE as Realtime Frontend (:5174)
+  participant API as Express REST (:3001)
+  participant SIO as Socket.IO Server (:3001)
+  participant PEER as Second Browser Tab
+
+  FE->>API: GET /api/blueprints/:author/:name
+  API-->>FE: Initial points JSON
+
+  FE->>SIO: emit join-room (blueprints.author.name)
+  PEER->>SIO: emit join-room (same room)
+
+  FE->>SIO: emit draw-event {room, author, name, point}
+  SIO-->>PEER: broadcast blueprint-update
+  SIO-->>FE: optional local acknowledgement/log
 ```
 
 **Conventions**
@@ -183,6 +196,15 @@ Recommended hardening:
 
 ---
 
+## 📚 Suggested Extensions
+
+- **Persistence**: store points in memory cache, Redis, or PostgreSQL.
+- **Scalability**: use Redis adapter for multi-instance Socket.IO deployment.
+- **Metrics**: add join/leave logs and latency ping-pong measurements.
+- **Security**: enforce JWT + room-level authorization.
+
+---
+
 ## 🩺 Troubleshooting
 
 - **Frontend blank page:** check browser console and frontend Vite setup.
@@ -228,11 +250,13 @@ Lint and Sonar checks passing.
 
 ## ✅ Delivery checklist
 
-- [ ] `GET /api/blueprints/:author/:name` returns initial points.
-- [ ] Clients join `room = blueprints.{author}.{name}`.
-- [ ] `draw-event` triggers `blueprint-update` broadcast.
-- [ ] Frontend reflects remote points in **< 1s** in 2+ tabs.
-- [ ] Team docs explain setup and frontend integration.
+- ✅ `GET /api/blueprints/:author/:name` returns initial points.
+- ✅ Clients join `room = blueprints.{author}.{name}`.
+- ✅ `draw-event` triggers `blueprint-update` broadcast to the room.
+- ✅ Frontend reflects remote drawing in **< 1s** in 2+ tabs.
+- ✅ Team lab document explains setup and frontend integration.
+
+> 🎉 **Status:** all mandatory checklist items are completed.
 
 ---
 
