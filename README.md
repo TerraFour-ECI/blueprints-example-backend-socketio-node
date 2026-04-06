@@ -1,4 +1,6 @@
-# ⚡ Socket.IO Backend - Final Evidence README
+# example-backend-socketio-node- - Socket.IO Backend for BluePrints P4
+
+**Goal:** understand, document, and run a **Node.js + Socket.IO** backend that enables realtime collaboration for blueprint drawing and integrates with the **React BluePrints P4 frontend**.
 
 <div align="center">
 
@@ -7,100 +9,226 @@
 ![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8-0f172a?style=for-the-badge&logo=socket.io&logoColor=white)
 ![Realtime](https://img.shields.io/badge/Realtime-Room_Broadcast-f97316?style=for-the-badge)
 
-Realtime room-based backend used by the central P4 frontend.
-
 </div>
 
 ---
 
-## 🎯 Purpose
+## 🧩 What this backend solves
 
-This backend is responsible for Socket.IO collaborative behavior:
-
-- join blueprint-specific rooms
-- receive draw events
-- broadcast updates to room peers
-
----
-
-## 🧩 Core contracts
-
-- `join-room` → `blueprints.{author}.{name}`
-- `draw-event` → `{ room, author, name, point }`
-- `blueprint-update` → `{ author, name, points: [...] }`
-- REST bootstrap endpoint: `GET /api/blueprints/:author/:name`
+- Minimal REST API for **initial blueprint state**.
+- **Realtime collaboration** with Socket.IO:
+  - Join author/blueprint rooms.
+  - Send incremental draw points and **broadcast** updates to peers.
+- Direct integration with the frontend repository: [DECSIS-ECI/Lab_P4_BluePrints_RealTime-Sokets](https://github.com/DECSIS-ECI/Lab_P4_BluePrints_RealTime-Sokets).
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture summary
 
-```mermaid
-flowchart LR
-  FE["Realtime Frontend :5174"] -->|"GET initial blueprint"| API["Express REST"]
-  FE -->|"join-room / draw-event"| IO["Socket.IO Server"]
-  IO -->|"blueprint-update"| FE
+```text
+React (Vite) --(HTTP GET initial state)--> Express
+React (Socket.IO) --(join-room / draw-event)--> Socket.IO Server
+                                        └--(blueprint-update broadcast to room)
 ```
 
+**Conventions**
+- **Room:** `blueprints.{author}.{name}`
+- **Client -> server events:**
+  - `join-room` -> `room`
+  - `draw-event` -> `{ room, author, name, point:{x,y} }`
+- **Server -> clients event:**
+  - `blueprint-update` -> `{ author, name, points:[{x,y}] }`
+
 ---
 
-## ▶️ Run
+## 📦 Requirements
+
+- Node.js **v18+** (recommended **v20 LTS**)
+- npm or pnpm
+
+---
+
+## 🚀 Getting started
 
 ```bash
-npm install
+# 1) Install dependencies
+npm i
+
+# 2) Run in development mode
 npm run dev
+# HTTP: http://localhost:3001
+# Socket.IO: same host/port
 ```
 
-Service URL: `http://localhost:3001`
+> **Port:** default is **3001**. You can override with `PORT`.
 
-Quick check:
+---
+
+## 🔌 REST endpoint (minimum)
+
+Used by the frontend to load the initial blueprint before realtime drawing starts.
+
+- **GET** `/api/blueprints/:author/:name`
+
+Example response:
+
+```json
+{
+  "author": "juan",
+  "name": "plano-1",
+  "points": [{ "x": 10, "y": 10 }, { "x": 40, "y": 50 }]
+}
+```
+
+Quick test:
 
 ```bash
-curl http://localhost:3001/api/blueprints/juan/blueprint-1
+curl http://localhost:3001/api/blueprints/juan/plano-1
 ```
+
+> This repository focuses on realtime behavior. Full CRUD (POST/PUT/DELETE/list) is handled by the course API.
+
+---
+
+## 🔴 Socket.IO event flow
+
+### 1) Join room
+
+**Client -> server**
+
+```js
+socket.emit('join-room', `blueprints.${author}.${name}`)
+```
+
+### 2) Send point (incremental drawing)
+
+**Client -> server**
+
+```js
+socket.emit('draw-event', {
+  room: `blueprints.${author}.${name}`,
+  author,
+  name,
+  point: { x, y }
+})
+```
+
+**Server -> clients (room broadcast)**
+
+Event: `blueprint-update`
+
+```json
+{
+  "author": "juan",
+  "name": "plano-1",
+  "points": [{ "x": 123, "y": 45 }]
+}
+```
+
+---
+
+## 🧪 Frontend integration (P4)
+
+In the realtime frontend repo ([DECSIS-ECI/Lab_P4_BluePrints_RealTime-Sokets](https://github.com/DECSIS-ECI/Lab_P4_BluePrints_RealTime-Sokets)), set:
+
+```bash
+VITE_API_BASE=http://localhost:8080   # CRUD API
+VITE_IO_BASE=http://localhost:3001    # this Socket.IO backend
+```
+
+Then:
+1. Start this backend.
+2. Start frontend.
+3. Select **Socket.IO** in the RT selector.
+4. Open two tabs on the same author/blueprint.
+5. Draw and verify near realtime replication.
+
+---
+
+## ⚙️ Configuration
+
+Environment variables:
+- `PORT` (optional): server port, default `3001`.
+
+Scripts:
+
+```json
+{
+  "scripts": {
+    "dev": "node server.js",
+    "lint": "eslint ."
+  }
+}
+```
+
+---
+
+## 🔐 CORS and security
+
+- Development: permissive CORS can simplify setup.
+- Production: restrict allowed origins.
+
+```js
+const allowed = ['https://your-frontend.example.com']
+const io = new Server(server, { cors: { origin: allowed } })
+```
+
+Recommended hardening:
+- Validate payloads (zod/joi).
+- Add authentication and room-level authorization (JWT).
+
+---
+
+## 🩺 Troubleshooting
+
+- **Frontend blank page:** check browser console and frontend Vite setup.
+- **No broadcast:** verify both tabs joined the **same room** and server uses room broadcasting.
+- **CORS blocked:** allow your frontend origin in backend CORS settings.
+- **Socket.IO connection issues:** force WebSocket in client `{ transports: ['websocket'] }`.
 
 ---
 
 ## 📸 Evidence gallery
 
-### 01 - Server started
-Backend runtime confirmed on expected port.
+### 01 - Server startup
+Backend running on expected port.
 
 ![socketio-01-server-start](images/socketio-01-server-start.png)
 
 ### 02 - Room join log
-Client enters expected collaboration room.
+Client successfully joined the collaboration room.
 
 ![socketio-02-room-join-log](images/socketio-02-room-join-log.png)
 
-### 03 - Draw-event payload
-Outgoing realtime event from frontend to Socket.IO server.
+### 03 - Draw event payload
+Point payload received from frontend.
 
 ![socketio-03-draw-event-log](images/socketio-03-draw-event-log.png)
 
 ### 04 - Broadcast update payload
-Server emits update to all peers in the same room.
+Server broadcast to room peers.
 
 ![socketio-04-broadcast-update-log](images/socketio-04-broadcast-update-log.png)
 
 ### 05 - Two-tab replication
-Visual proof of synchronized drawing between tabs.
+Visual synchronization between browser tabs.
 
 ![socketio-05-two-tabs-replication](images/socketio-05-two-tabs-replication.png)
 
-### 06 - CI/quality evidence
-Lint and Sonar pipeline passing.
+### 06 - Quality evidence
+Lint and Sonar checks passing.
 
 ![socketio-06-sonar-and-lint-pass](images/socketio-06-sonar-and-lint-pass.png)
 
 ---
 
-## 🔗 Integration note
+## ✅ Delivery checklist
 
-Set this in realtime frontend `.env.local`:
-
-```bash
-VITE_IO_BASE=http://localhost:3001
-```
+- [ ] `GET /api/blueprints/:author/:name` returns initial points.
+- [ ] Clients join `room = blueprints.{author}.{name}`.
+- [ ] `draw-event` triggers `blueprint-update` broadcast.
+- [ ] Frontend reflects remote points in **< 1s** in 2+ tabs.
+- [ ] Team docs explain setup and frontend integration.
 
 ---
 
