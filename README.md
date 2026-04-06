@@ -167,6 +167,10 @@ Then:
 Environment variables:
 - `PORT` (optional): server port, default `3001`.
 - `CORS_ORIGINS` (optional): comma-separated allowed origins; use `*` only for local dev.
+- `JWT_REQUIRED` (optional): defaults to `true`; when enabled, socket handshake requires Bearer token.
+- `JWT_ENFORCE_ROOM_OWNER` (optional): defaults to `true`; user can only join/publish for their own author room unless admin.
+- `SECURITY_API_BASE` (optional): defaults to `http://localhost:8080` for remote token validation.
+- `JWT_ADMIN_USERS` (optional): comma-separated usernames that can access any room.
 
 Scripts:
 
@@ -201,6 +205,9 @@ Recommended hardening:
 - Basic observability is implemented with structured logs for connect, join-room, draw-event, and disconnect.
 - Health check endpoint is available at `GET /health`.
 - Latency hook is implemented with `ping-check` -> `pong-check` socket events.
+- JWT handshake authorization is implemented with Socket.IO middleware (`io.use(...)`) and Bearer extraction.
+- Token validity is enforced by calling the security backend (`SECURITY_API_BASE/api/blueprints`) before accepting socket connection.
+- Room/topic ownership enforcement is implemented in `join-room` and `draw-event` handlers.
 
 ---
 
@@ -218,8 +225,8 @@ Recommended hardening:
   - Next step: export metrics to Prometheus/Grafana.
 - **Security**
   - Why: production should restrict who can publish to each blueprint room.
-  - How it is currently supported: CORS is configurable; payload shape is validated.
-  - Next step: enforce JWT verification and room-level authorization middleware.
+  - How it is currently supported: CORS is configurable, payload shape is validated, JWT handshake is required, and room-level authorization is enforced.
+  - Next step: move from remote API validation to direct JWK verification and add role-based permissions for cross-author collaboration policies.
 
 ---
 
